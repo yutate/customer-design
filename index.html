@@ -1087,10 +1087,9 @@ async function callAI(messages, step) {
       body: JSON.stringify({
         contents,
         generationConfig: {
-          temperature: 0.8,
           maxOutputTokens: 8192,
-          thinkingConfig: { thinkingBudget: 0 },
         },
+        thinkingConfig: { thinkingBudget: 0 },
       }),
     }
   );
