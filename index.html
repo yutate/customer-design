@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ズレない顧客設計 v1.4</title>
+<style>
+  /* ===== DESIGN TOKENS ===== */
+  :root {
+    --bg: #0f0f11;
+    --surface: #18181c;
+    --surface2: #1f1f25;
+    --border: #2a2a33;
+    --border-light: #35353f;
+    --accent: #e8c547;
+    --accent-dim: rgba(232,197,71,0.12);
+    --accent-glow: rgba(232,197,71,0.25);
+    --text: #ededf0;
+    --text-muted: #7a7a8a;
+    --text-dim: #4a4a58;
+    --ai-bubble: #1c1c22;
+    --user-bubble: #1a1f2e;
+    --user-accent: #3a6bff;
+    --danger: #e05a5a;
+    --success: #52d97a;
+    --card1: #1e2a35;
+    --card2: #1e2835;
+    --card3: #251e35;
+    --card4: #2a2015;
+    --font-display: 'Georgia', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    --font-body: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    height: 100%;
+    overflow-x: hidden;
+  }
+
+  /* ===== LAYOUT ===== */
+  .app-shell {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-columns: 1fr 320px;
+    height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .header-brand h1 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: normal;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header-brand h1 span.dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+  }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ===== MAIN CHAT AREA ===== */
+  .main-area {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    min-height: 0;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .progress-steps {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .step-dot {
+    width: 28px; height: 4px;
+    border-radius: 2px;
+    background: var(--border-light);
+    transition: background 0.3s ease;
+  }
+  .step-dot.active { background: var(--accent); }
+  .step-dot.done { background: rgba(232,197,71,0.4); }
+  .progress-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .step-num {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-left: auto;
+  }
+
+  /* Chat messages */
+  .chat-messages {
+    padding: 16px 20px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+
+  .msg {
+    display: flex;
+    gap: 10px;
+    animation: msgIn 0.3s ease forwards;
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  @keyframes msgIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .avatar.ai {
+    background: var(--accent);
+    color: #0f0f11;
+  }
+  .avatar.user-av {
+    background: var(--user-accent);
+    color: #fff;
+  }
+
+  .bubble {
+    max-width: 78%;
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .bubble.ai {
+    background: var(--ai-bubble);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-top-left-radius: 4px;
+  }
+  .bubble.user-b {
+    background: var(--user-bubble);
+    border: 1px solid rgba(58,107,255,0.25);
+    color: var(--text);
+    border-top-right-radius: 4px;
+    text-align: right;
+  }
+  .bubble .highlight {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Typing indicator */
+  .typing-dots {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 4px 2px;
+  }
+  .typing-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+  }
+
+  /* Result cards */
+  .result-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+    animation: msgIn 0.4s ease forwards;
+    opacity: 0;
+  }
+  .result-card {
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .result-card.who { background: var(--card1); border-color: rgba(58,107,255,0.3); }
+  .result-card.context { background: var(--card2); border-color: rgba(82,217,122,0.2); }
+  .result-card.emotion { background: var(--card3); border-color: rgba(180,120,255,0.2); }
+  .result-card.value { background: var(--card4); border-color: rgba(232,197,71,0.3); }
+  .result-card.plan { background: #1a1a20; border-color: rgba(255,255,255,0.1); }
+  .result-card.plan .result-card-label { color: var(--text-muted); }
+  .result-card.ritual { background: #1a1e28; border-color: rgba(100,160,255,0.2); }
+  .result-card.ritual .result-card-label { color: #6aa0ff; }
+  .result-card-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .result-card.who .result-card-label { color: #6a9fff; }
+  .result-card.context .result-card-label { color: var(--success); }
+  .result-card.emotion .result-card-label { color: #b47aff; }
+  .result-card.value .result-card-label { color: var(--accent); }
+  .result-card-body { font-size: 13px; line-height: 1.55; color: var(--text); }
+
+  .result-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Input area */
+  .input-area {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  }
+  .input-wrap {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  textarea#user-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 10px 14px;
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  textarea#user-input::placeholder { color: var(--text-dim); }
+  textarea#user-input:focus { border-color: var(--accent); }
+  textarea#user-input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-send {
+    background: var(--accent);
+    color: #0f0f11;
+    border: none;
+    border-radius: var(--radius-sm);
+    width: 44px; height: 44px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: opacity 0.2s, transform 0.1s;
+    font-size: 18px;
+  }
+  .btn-send:hover:not(:disabled) { opacity: 0.85; }
+  .btn-send:active:not(:disabled) { transform: scale(0.95); }
+  .btn-send:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--surface);
+    min-height: 0;
+  }
+  .sidebar-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+  .sidebar-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+  }
+  .sidebar-list::-webkit-scrollbar { width: 3px; }
+  .sidebar-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+
+  .history-item {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .history-item:hover { background: var(--surface2); border-color: var(--border); }
+  .history-item-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .history-item-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .history-item-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .history-item:hover .history-item-btns { opacity: 1; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+  .empty-state .icon { font-size: 28px; margin-bottom: 8px; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #0f0f11; border-color: var(--accent); }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-ghost { background: transparent; color: var(--text-muted); border-color: var(--border); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-danger { background: transparent; color: var(--danger); border-color: rgba(224,90,90,0.3); }
+  .btn-danger:hover { background: rgba(224,90,90,0.1); }
+  .btn-sm { padding: 4px 8px; font-size: 11px; }
+  .btn-new {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid rgba(232,197,71,0.3);
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+  .btn-new:hover { background: var(--accent-dim); }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 28px;
+    width: min(420px, 90vw);
+    box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,0.03);
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn {
+    from { transform: translateY(12px) scale(0.97); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  .modal h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: normal;
+    margin-bottom: 6px;
+  }
+  .modal-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+  .modal label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.04em; }
+  .modal input[type="text"], .modal input[type="password"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .modal input:focus { border-color: var(--accent); }
+  .modal-note { font-size: 11px; color: var(--text-dim); margin-top: 8px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  /* ===== ERROR BANNER ===== */
+  .error-banner {
+    background: rgba(224,90,90,0.12);
+    border: 1px solid rgba(224,90,90,0.35);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--danger);
+    display: none;
+    margin: 0 24px 12px;
+  }
+  .error-banner.visible { display: block; }
+
+  /* ===== START SCREEN ===== */
+  .start-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 40px 24px;
+    text-align: center;
+    gap: 20px;
+  }
+  .start-icon { font-size: 40px; }
+  .start-title { font-family: var(--font-display); font-size: 22px; font-weight: normal; }
+  .start-desc { font-size: 13px; color: var(--text-muted); max-width: 320px; line-height: 1.7; }
+  .start-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 340px;
+    text-align: left;
+  }
+  .start-step {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .start-step-num {
+    width: 20px; height: 20px;
+    background: var(--accent);
+    color: #0f0f11;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .start-step-text { font-size: 12px; color: var(--text-muted); }
+  .start-step-text strong { color: var(--text); display: block; font-size: 13px; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .app-shell {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr auto;
+    }
+    .sidebar {
+      display: none;
+    }
+    .sidebar.open {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+    }
+    .header { padding: 12px 16px; }
+    .chat-messages { padding: 12px 14px; }
+    .input-area { padding: 12px 16px 16px; }
+    .result-cards { grid-template-columns: 1fr; }
+    .bubble { max-width: 88%; }
+  }
+
+
+  /* ===== MODE BAR ===== */
+  .mode-bar {
+    display: flex;
+    gap: 6px;
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mode-bar::-webkit-scrollbar { display: none; }
+  .mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-muted);
+    white-space: nowrap;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+  }
+  .mode-btn:hover { background: var(--surface2); color: var(--text); }
+  .mode-btn.active { color: #0f0f11; border-color: transparent; }
+  .mode-btn[data-mode="normal"].active  { background: #6a9fff; }
+  .mode-btn[data-mode="expand"].active  { background: #52d97a; }
+  .mode-btn[data-mode="converge"].active { background: #e8c547; }
+  .mode-btn[data-mode="yuta"].active    { background: #e05a5a; }
+
+
+  /* ===== CHAOS BUTTON ===== */
+  .chaos-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-body);
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+    border: 1.5px solid rgba(224,90,90,0.5);
+    color: var(--danger);
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .chaos-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 3px,
+      rgba(224,90,90,0.06) 3px,
+      rgba(224,90,90,0.06) 6px
+    );
+    pointer-events: none;
+  }
+  .chaos-btn:hover {
+    background: rgba(224,90,90,0.12);
+    border-color: var(--danger);
+    box-shadow: 0 0 10px rgba(224,90,90,0.25);
+  }
+  .chaos-btn:active { transform: scale(0.96); }
+  .chaos-btn.firing {
+    animation: chaosFire 0.4s ease;
+  }
+  @keyframes chaosFire {
+    0%   { transform: translateX(0); }
+    20%  { transform: translateX(-3px) rotate(-1deg); }
+    40%  { transform: translateX(3px) rotate(1deg); }
+    60%  { transform: translateX(-2px); }
+    80%  { transform: translateX(2px); }
+    100% { transform: translateX(0); }
+  }
+
+  /* ===== ASIDE MESSAGE (愛の問い) ===== */
+  .msg-aside {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0 8px;
+    animation: asideIn 0.8s ease forwards;
+    opacity: 0;
+  }
+  @keyframes asideIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg-aside-inner {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: italic;
+    letter-spacing: 0.03em;
+    text-align: center;
+    line-height: 1.7;
+    max-width: 280px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .msg-aside-inner strong {
+    color: var(--text-muted);
+    font-style: normal;
+  }
+
+  /* ===== SCROLLBAR GLOBAL ===== */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+
+  /* ===== UTIL ===== */
+  .hidden { display: none !important; }
+  .accent { color: var(--accent); }
+  .muted { color: var(--text-muted); }
+
+</style>
+</head>
+<body>
+
+<!-- ===== MODALS ===== -->
+
+<!-- API Key Modal -->
+<div class="modal-overlay hidden" id="api-modal">
+  <div class="modal">
+    <h2>🔑 APIキーを設定</h2>
+    <div class="modal-sub">Gemini APIキーを入力してください。<br>会話を始めるのに必要です。</div>
+    <label>GEMINI API KEY</label>
+    <input type="password" id="api-key-input" placeholder="AIzaSy..." autocomplete="off">
+    <div style="margin-top:14px">
+      <label>使用モデル</label>
+      <select id="model-select" style="width:100%;background:var(--surface2);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text);font-size:14px;padding:10px 12px;outline:none;cursor:pointer;font-family:var(--font-body);">
+        <option value="gemini-2.5-flash">gemini-2.5-flash（推奨・最新）</option>
+        <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite（軽量・高速）</option>
+        <option value="gemini-2.0-flash">gemini-2.0-flash（旧世代）</option>
+      </select>
+    </div>
+    <div class="modal-note">⚠️ キーとモデル設定はブラウザの localStorage にのみ保存されます。サーバーには送信されません。<br><br>レート制限エラーが出る場合は少し待つか、Google AI Studio で課金設定を確認してください。</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeApiModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">保存して開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal (history) -->
+<div class="modal-overlay hidden" id="preview-modal">
+  <div class="modal" style="width:min(500px,90vw)">
+    <h2 id="preview-title" style="margin-bottom:16px">顧客設計の詳細</h2>
+    <div id="preview-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-ghost" onclick="closePreview()">閉じる</button>
+      <button class="btn btn-primary" id="preview-load-btn">この設計を呼び出す</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP SHELL ===== -->
+<div class="app-shell">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-brand">
+      <h1><span class="dot"></span>ズレない顧客設計</h1>
+      <div class="header-sub">企画前に、顧客理解を3分で整理 <span style="color:var(--text-dim);margin-left:6px;font-size:10px;letter-spacing:0.06em">v1.4</span></div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openApiModal()" title="APIキー設定">🔑 APIキー</button>
+      <button class="btn btn-ghost btn-sm hidden" id="mobile-history-btn" onclick="toggleSidebar()">📋 履歴</button>
+      <button class="btn btn-ghost btn-sm" onclick="startNew()" id="new-btn">＋ 新規</button>
+    </div>
+  </header>
+
+  <!-- MAIN CHAT -->
+  <main class="main-area" id="main-area">
+
+    <!-- Start screen -->
+    <div class="start-screen" id="start-screen">
+      <div class="start-icon">🎯</div>
+      <div class="start-title">顧客理解、3分で整理しよう</div>
+      <div class="start-desc">
+        企画を始める前の「なんとなくの顧客像」を<br>AIメンターが短く鋭く整理します。
+      </div>
+      <div class="start-steps">
+        <div class="start-step"><div class="start-step-num">1</div><div class="start-step-text"><strong>誰に向けた企画か入力</strong>いまの顧客像をそのまま書く</div></div>
+        <div class="start-step"><div class="start-step-num">2</div><div class="start-step-text"><strong>AIがズレを1つ指摘</strong>曖昧な部分を短く突っ込む</div></div>
+        <div class="start-step"><div class="start-step-num">3</div><div class="start-step-text"><strong>2〜3ターンで深掘り</strong>状況・感情まで絞り込む</div></div>
+        <div class="start-step"><div class="start-step-num">4</div><div class="start-step-text"><strong>顧客設計カードが完成</strong>外しにくい顧客像を保存・活用</div></div>
+      </div>
+      <button class="btn btn-primary" style="padding:10px 28px;font-size:14px;margin-top:4px" onclick="startSession()">
+        ▶ はじめる
+      </button>
+    </div>
+
+    <!-- Progress bar (hidden initially) -->
+    <div class="progress-bar hidden" id="progress-bar">
+      <div class="progress-steps" id="progress-steps">
+        <div class="step-dot active" id="step-1"></div>
+        <div class="step-dot" id="step-2"></div>
+        <div class="step-dot" id="step-3"></div>
+        <div class="step-dot" id="step-4"></div>
+      </div>
+      <span class="progress-label">STEP</span>
+      <span class="step-num" id="step-label">1 / 4</span>
+    </div>
+
+    <!-- Mode bar -->
+    <div class="mode-bar hidden" id="mode-bar">
+      <button class="mode-btn active" data-mode="normal" onclick="setMode('normal')">🤝 通常</button>
+      <button class="mode-btn" data-mode="expand" onclick="setMode('expand')">🪄 風呂敷広げ</button>
+      <button class="mode-btn" data-mode="converge" onclick="setMode('converge')">🗜 畳む</button>
+      <button class="mode-btn" data-mode="yuta" onclick="setMode('yuta')">⚡ Yuta</button>
+      <button class="chaos-btn" id="chaos-btn" onclick="fireChaos()" title="思考を脱線させる">⚡ 混乱</button>
+    </div>
+
+    <!-- Error banner -->
+    <div class="error-banner" id="error-banner"></div>
+
+    <!-- Chat messages -->
+    <div class="chat-messages hidden" id="chat-messages"></div>
+
+    <!-- Input area -->
+    <div class="input-area hidden" id="input-area">
+      <div class="input-wrap">
+        <textarea id="user-input" placeholder="ここに入力してください..." rows="1"></textarea>
+        <button class="btn-send" id="send-btn" onclick="sendMessage()">↑</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- SIDEBAR: HISTORY -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">保存済みの顧客設計</div>
+      <div class="sidebar-actions" style="margin-top:8px">
+        <button class="btn btn-ghost btn-sm" onclick="exportAll()" title="エクスポート">⬇ JSON</button>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="インポート">
+          ⬆ インポート
+          <input type="file" accept=".json" style="display:none" onchange="importData(event)">
+        </label>
+      </div>
+    </div>
+    <div class="sidebar-list" id="history-list">
+      <!-- populated by JS -->
+    </div>
+  </aside>
+
+</div>
+
+<script>
+/* ============================================================
+   STATE
+============================================================ */
+let state = {
+  step: 0,           // 0=start, 0.5=plan input, 1-4=active steps
+  messages: [],      // [{role, content}] for Gemini
+  uiMessages: [],    // displayed messages
+  currentDesign: null, // final result
+  sessionInput: [],  // raw user inputs per step
+  planContext: '',   // Step0: 何の企画か
+  currentMode: 'normal', // normal | expand | converge | yuta
+};
+
+/* ============================================================
+   SYSTEM PROMPT
+============================================================ */
+const SYSTEM_PROMPT = `あなたは「ズレない顧客設計」のAIメンターだ。
+
+## 絶対ルール
+- 1返答 = 最大3行
+- 質問は1つだけ
+- 説明・講義・前置き禁止
+- ポジティブな評価禁止（「起点はある」「良い視点」「面白い」「興味深い」は全部禁止）
+
+## 返答の構造（毎回これだけ）
+1行目：指摘（1つ）
+2行目：修正指示（具体）
+3行目：質問（1つ）
+
+例：
+「若年層は広すぎる。
+1人にして。
+何年生？」
+
+「状況がない。
+その人が使う場面を言って。
+仕事中？休日？」
+
+## 質問のルール
+ユーザーが3秒で答えられる質問だけ出す。
+
+OK：
+- 何年生？
+- 仕事中？休日？
+- 朝？夜？
+- 何を見た時？
+- 何が起きたら嫌？
+- いつ申し込む？
+- 友達に一言で言うなら？
+
+NG（禁止）：
+- 何が怖い？
+- 何を避けたかった？
+- 動く瞬間はいつ？
+- どんな状況？
+- どんな場面？
+- 行動の裏にある感情は？
+
+## NG判定（即ツッコむ）
+- 「若年層」「主婦」「ビジネスパーソン」→ 広すぎ、1人にさせる
+- 「お得に敏感」「SNSをよく使う」→ 誰でも当てはまる
+- 属性しかなく状況がない → 場面を聞く
+- 感情がない → 具体的な出来事を聞く`;
+
+
+/* ============================================================
+   MODE PROMPTS
+============================================================ */
+const MODE_PROMPTS = {
+  normal: `あなたは優秀な同僚として、マーケティング企画の思考を整理・軽く広げる役割だ。
+
+## 絶対ルール
+- 出力は最大4行
+- 質問は1つだけ
+- フレームワーク名禁止
+- 抽象表現禁止
+- 長い説明禁止
+- 「良い視点」「素晴らしい」などの曖昧な肯定禁止
+
+## やること
+- 企画の方向性を短く整理
+- 切り口を2〜3個提示（1つ1行）
+- 最後に選ばせる
+
+## 出力例
+「この方向なら切り口いくつかある。
+
+・割り勘の気まずさ
+・親の管理（使いすぎ）
+・遊びのノリ
+
+どれ狙う？」`,
+
+  expand: `あなたは発散担当として、企画の可能性を広げる役割だ。
+
+## 絶対ルール
+- 出力は最大4行、否定しない
+- アイデアは最大3つ（1つ1行）、最後に選択を促す
+- フレームワーク名・抽象表現禁止
+
+## やること
+新しい切り口を出す。以下の3パターンを意識して選ぶ：
+- 不完全提示：あえて情報を欠落させ、意味補完を誘発する方向
+- 選択余白：明確な正解を出さず、主体的選択を促す方向
+- 逆説提示：既存の認知と矛盾する視点を出す方向
+
+## 出力例
+「別の見方もある。
+
+・"誰が払うか"問題
+・"空気壊したくない"心理
+・あえて"不便さ"を残す設計
+
+どこ攻める？」`,
+
+  converge: `あなたは収束担当として、企画の思考を絞る役割だ。
+
+## 絶対ルール
+- 出力は最大4行
+- 問題点は最大2つだけ
+- 無駄な肯定なし、直球で言う
+- フレームワーク名禁止
+
+## 評価視点
+- 意味的一貫性：価値が文脈を横断して矛盾しないか
+- 文脈適合性：その人の状況に過不足なく適合しているか
+- 最適化 vs 意味：「便利」で終わっていないか
+
+## 出力例
+「これ、そのままだと弱い。
+
+"便利"で終わってる。
+
+→ なぜこの人が選ぶ必然を設計した方がいい」`,
+
+  yuta: `あなたは「寺地祐太」として振る舞うAIだ。
+
+## 寺地祐太とは
+ENTP・着想エンジン・戦略性。型破りなアイデアで突破口を開く戦略家。
+「自分が達成する」より「人を育て、チームに意味をもたらす」タイプ。
+燃料：知的刺激・新しい挑戦・人の成長。
+
+## 思想的背景（論文・2026年）
+Yutaは「ダブルファネル2.0」「必然の偶然（Serendipity by Design）」を提唱。
+- AIが最適化を代替する時代、「意味」こそが差別化
+- 捉えるマーケは終わった。「接続を許可される存在」になれるかが問われる
+- ターゲットは「データの記号」ではなく意味を共創する主体
+- 愛用者とは「選択の継続」ではなく「存在の一部化」
+- 直感→論理→体験 の変換プロセスが本質
+
+## 視座
+- ターゲットが「記号」になっていないか。体温があるか
+- 「なぜこれをやるのか」の目的を問い直す
+- 最適化されているか、ではなく「意味があるか」を問う
+- 「便利」と「使う必然」は別物
+
+## 返答スタイル（絶対守れ）
+- 1返答は最大3行
+- ポジティブ評価禁止（「面白い」「起点はある」全部禁止）
+- 議論を楽しむように鋭く返す。前例主義・凡庸さには強く反応
+- 必ず「次に何を考えるか」という問いで終わる
+
+## 出力例
+「ターゲットが記号になってる。
+その人、今日何食べた？
+想像できないなら、まだ人じゃない。」
+
+「便利は最適化。意味じゃない。
+なぜこの人がこれを選ぶ必然がある？
+それが言えないなら、接続を許可されない。」`,
+};
+
+function getModePrompt() {
+  return MODE_PROMPTS[state.currentMode] || MODE_PROMPTS.normal;
+}
+
+/* ============================================================
+   STEP INSTRUCTIONS (added per-turn to guide Gemini)
+============================================================ */
+const STEP_INSTRUCTIONS = {
+  1: `Step1。ユーザーが最初の顧客像を入力した。
+以下の構造で返せ（3行以内）：
+1行目：一番のズレを指摘（「〇〇は広すぎる」「〇〇しかない」）
+2行目：修正の方向を一言（「1人にして」「場面を加えて」）
+3行目：3秒で答えられる質問を1つ
+OK例：「何年生？」「仕事中？休日？」「男？女？」
+NG例：「どんな場面？」「何が怖い？」「動く瞬間は？」
+ポジティブ評価（「起点はある」「方向はいい」など）は一切書くな。`,
+
+  2: `Step2。ユーザーが補足した。
+以下の構造で返せ（3行以内）：
+1行目：まだ足りない点を1つ指摘（「でも状況がない」「もう少し具体に」）
+2行目：何を足すべきか一言
+3行目：3秒で答えられる質問を1つ
+OK例：「朝？夜？」「何を見た時？」「何が起きたら嫌？」
+NG例：「何を避けたかった？」「感情は？」
+ポジティブ評価禁止。`,
+
+  3: `Step3。最後の深掘り。
+以下の構造で返せ（3行以内）：
+1行目：残る1点を指摘
+2行目：それを埋める指示
+3行目：即答できる質問を1つ（これが最後の質問）
+OK例：「いつ申し込む？」「何を見たら動く？」「友達に一言で言うなら？」
+NG例：「動く瞬間はいつ？」「どんな価値を感じる？」
+ポジティブ評価禁止。`,
+
+  4: `最終ステップ。以下のJSONのみ返せ。説明文・マークダウン不要。
+
+{
+  "who": "一人に近い具体的な人物像（2文以内）",
+  "context": "その人の具体的な状況・行動シーン（1〜2文）",
+  "emotion": "その人の感情（会話調で1文。抽象語禁止）",
+  "value_hint": "刺さる価値（「〜できる」「〜しなくていい」など具体的な言葉で1文。「安心感」「自己肯定感」などの抽象語禁止）",
+  "ritual": "この人がこのサービス・企画を使う儀式的な場面（「〜の時に毎回」レベルで1文。ロイヤルではなく愛用＝存在の一部化になる場面）",
+  "plan": "〇〇向けの〇〇（例：新社会人向けクレジットカード）",
+  "title": "タイトル（10文字以内）"
+}
+value_hintは抽象語禁止。ritualは「選択の継続」ではなく「存在の一部化」になる場面を書け。`,
+};
+
+/* ============================================================
+   API
+============================================================ */
+async function callAI(messages, step) {
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) throw new Error('APIキーが設定されていません');
+
+  // モード別プロンプト + 共通ルール + 企画コンテキスト
+  const modePrompt = getModePrompt();
+  const commonRules = '\n\n## 共通ルール（最重要・全モード適用）\n- 出力は短く（最大3〜4行）\n- 1回につき質問は1つだけ\n- 抽象表現は禁止（必ず具体）\n- 長い説明・講義は禁止\n- フレームワーク名は出さない\n- 必ず「次に何を考えるか」で終わる\n- 質問はユーザーが3秒で答えられるレベル';
+  const planNote = state.planContext
+    ? '\n\n## 今回の企画\n「' + state.planContext + '」の企画。この前提で動け。'
+    : '';
+  const systemWithPlan = modePrompt + commonRules + planNote;
+
+  // Add step instruction as final system context
+  const stepInstruction = STEP_INSTRUCTIONS[step];
+  const fullMessages = [
+    ...messages,
+    { role: 'user', content: '[SYSTEM INSTRUCTION FOR THIS STEP]\n' + stepInstruction },
+  ];
+
+  // Re-structure: Gemini needs alternating user/model
+  // We'll use the contents format
+  const contents = [];
+  // Inject system prompt as first user turn + model ack (Gemini doesn't support system role directly in REST)
+  contents.push({ role: 'user', parts: [{ text: systemWithPlan }] });
+  contents.push({ role: 'model', parts: [{ text: 'はい、理解しました。顧客理解のズレを短く指摘するメンターとして動きます。' }] });
+
+  messages.forEach(m => {
+    contents.push({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    });
+  });
+  // Add step instruction
+  contents.push({ role: 'user', parts: [{ text: '[STEP INSTRUCTION]\n' + stepInstruction }] });
+
+  const model = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+
+  const res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 8192,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err?.error?.message || '';
+    if (res.status === 429 || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
+      throw new Error('レート制限に達しました。少し待ってから再試行するか、Google AI Studio で課金設定を確認してください。（モデル: ' + model + '）');
+    }
+    if (res.status === 400 && msg.includes('API_KEY')) {
+      throw new Error('APIキーが無効です。🔑 APIキー から再設定してください。');
+    }
+    throw new Error(msg || 'APIエラー: ' + res.status);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!text) throw new Error('AIからの返答が空でした');
+  return text.trim();
+}
+
+/* ============================================================
+   SESSION FLOW
+============================================================ */
+function startSession() {
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) {
+    openApiModal();
+    return;
+  }
+
+  // Hide start screen
+  document.getElementById('start-screen').classList.add('hidden');
+  // Show chat UI
+  document.getElementById('progress-bar').classList.remove('hidden');
+  document.getElementById('mode-bar').classList.remove('hidden');
+  document.getElementById('chat-messages').classList.remove('hidden');
+  document.getElementById('input-area').classList.remove('hidden');
+
+  // Reset state
+  state.step = 0.5; // Step0: plan input
+  state.messages = [];
+  state.uiMessages = [];
+  state.currentDesign = null;
+  state.sessionInput = [];
+  state.planContext = '';
+
+  updateProgress(0);
+  clearMessages();
+
+  // Step0: 企画を聞く
+  appendMessage('ai', '何の企画？\n（例：クレカ、転職アプリ、サプリなど）');
+  focusInput();
+}
+
+function startNew() {
+  // Reset to start screen
+  state.step = 0;
+  clearMessages();
+  document.getElementById('start-screen').classList.remove('hidden');
+  document.getElementById('progress-bar').classList.add('hidden');
+  document.getElementById('mode-bar').classList.add('hidden');
+  document.getElementById('chat-messages').classList.add('hidden');
+  document.getElementById('input-area').classList.add('hidden');
+  hideError();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text || state.step === 0) return;
+
+  input.value = '';
+  resizeTextarea(input);
+  setInputEnabled(false);
+  hideError();
+
+  // Show user message
+  appendMessage('user', text);
+
+  // Add to conversation history
+  state.messages.push({ role: 'user', content: text });
+  state.sessionInput.push(text);
+
+  // Step0: 企画コンテキストを受け取る
+  if (state.step === 0.5) {
+    state.planContext = text;
+    state.step = 1;
+    updateProgress(1);
+    appendMessage('ai', '誰に向けた企画？\nそのまま書いて。');
+    setInputEnabled(true);
+    focusInput();
+    return;
+  }
+
+  const currentStep = state.step;
+
+  // Show typing
+  const typingId = showTyping();
+
+  try {
+    const aiReply = await callAI(state.messages, currentStep);
+    removeTyping(typingId);
+    state.messages.push({ role: 'assistant', content: aiReply });
+
+    if (currentStep === 4) {
+      // Final step: parse JSON result
+      handleFinalResult(aiReply);
+    } else {
+      appendMessage('ai', aiReply);
+      state.step++;
+      updateProgress(state.step);
+      setInputEnabled(true);
+      focusInput();
+    }
+  } catch (err) {
+    removeTyping(typingId);
+    showError(err.message);
+    setInputEnabled(true);
+    // Remove the failed user message from history
+    state.messages.pop();
+    state.sessionInput.pop();
+  }
+}
+
+function handleFinalResult(rawJson) {
+  // Parse JSON from AI
+  let result;
+  try {
+    const clean = rawJson.replace(/```json|```/g, '').trim();
+    result = JSON.parse(clean);
+  } catch {
+    // Fallback: try to extract JSON
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    try {
+      result = JSON.parse(match?.[0] || '{}');
+    } catch {
+      showError('結果の解析に失敗しました。もう一度お試しください。');
+      setInputEnabled(true);
+      return;
+    }
+  }
+
+  state.currentDesign = result;
+  updateProgress(4, true);
+
+  // Display result cards
+  const cardsHtml = buildResultCards(result);
+  appendRaw(cardsHtml);
+
+  // Save to localStorage
+  const saved = saveDesign(result, state.sessionInput.join('\n'));
+
+  // Show actions
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'result-actions';
+  actionsEl.innerHTML =
+    '<button class="btn btn-primary btn-sm" onclick="startNew()">＋ 新しい設計をはじめる</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="exportSingle(\'' + saved.id + '\')">⬇ JSONで保存</button>';
+  document.getElementById('chat-messages').appendChild(actionsEl);
+
+  // 愛の問い（2秒後に静かに表示）
+  setTimeout(() => {
+    const aside = document.createElement('div');
+    aside.className = 'msg-aside';
+    aside.innerHTML = '<div class="msg-aside-inner"><strong>整理はできた。</strong><br>で、キミはこの人のこと、好きになれそう？</div>';
+    document.getElementById('chat-messages').appendChild(aside);
+    scrollToBottom();
+  }, 2000);
+
+  // Disable input
+  document.getElementById('input-area').classList.add('hidden');
+
+  // Refresh sidebar
+  renderHistory();
+
+  // Scroll to bottom
+  scrollToBottom();
+}
+
+/* ============================================================
+   UI HELPERS
+============================================================ */
+function appendMessage(role, text) {
+  const container = document.getElementById('chat-messages');
+  const msg = document.createElement('div');
+  msg.className = 'msg ' + role;
+  const isAI = role === 'ai';
+  msg.innerHTML =
+    '<div class="avatar ' + (isAI ? 'ai' : 'user-av') + '">' + (isAI ? 'AI' : 'ME') + '</div>' +
+    '<div class="bubble ' + (isAI ? 'ai' : 'user-b') + '">' + escHtml(text).replace(/\n/g, '<br>') + '</div>';
+  container.appendChild(msg);
+  scrollToBottom();
+}
+
+function appendRaw(html) {
+  const container = document.getElementById('chat-messages');
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = html;
+  container.appendChild(wrapper.firstChild);
+  scrollToBottom();
+}
+
+function showTyping() {
+  const container = document.getElementById('chat-messages');
+  const id = 'typing-' + Date.now();
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.id = id;
+  el.innerHTML = '<div class="avatar ai">AI</div><div class="bubble ai"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+  container.appendChild(el);
+  scrollToBottom();
+  return id;
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function clearMessages() {
+  const c = document.getElementById('chat-messages');
+  if (c) c.innerHTML = '';
+}
+
+function updateProgress(step, done = false) {
+  for (let i = 1; i <= 4; i++) {
+    const dot = document.getElementById('step-' + i);
+    if (!dot) continue;
+    dot.className = 'step-dot';
+    if (i < step || (done && i <= step)) dot.classList.add('done');
+    else if (i === step && !done) dot.classList.add('active');
+  }
+  const label = document.getElementById('step-label');
+  if (label) {
+    if (done) label.textContent = '完成！';
+    else if (step === 0) label.textContent = '企画を入力';
+    else label.textContent = step + ' / 4';
+  }
+}
+
+function buildResultCards(r) {
+  const planRow = (r.plan || state.planContext)
+    ? '<div class="result-card plan" style="grid-column:1/-1">' + '<div class="result-card-label">📌 企画</div>' + '<div class="result-card-body">' + escHtml(r.plan || state.planContext) + '</div>' + '</div>'
+    : '';
+  return '<div class="result-cards">' +
+    planRow +
+    '<div class="result-card who"><div class="result-card-label">👤 顧客</div><div class="result-card-body">' + escHtml(r.who || '―') + '</div></div>' +
+    '<div class="result-card context"><div class="result-card-label">🌐 状況</div><div class="result-card-body">' + escHtml(r.context || '―') + '</div></div>' +
+    '<div class="result-card emotion"><div class="result-card-label">💭 感情</div><div class="result-card-body">' + escHtml(r.emotion || '―') + '</div></div>' +
+    '<div class="result-card value"><div class="result-card-label">✨ 刺さる価値</div><div class="result-card-body">' + escHtml(r.value_hint || '―') + '</div></div>' +
+    (r.ritual ? '<div class="result-card ritual" style="grid-column:1/-1"><div class="result-card-label">🔁 愛用の儀式</div><div class="result-card-body">' + escHtml(r.ritual) + '</div></div>' : '') +
+  '</div>';
+}
+
+function setInputEnabled(enabled) {
+  const input = document.getElementById('user-input');
+  const btn = document.getElementById('send-btn');
+  input.disabled = !enabled;
+  btn.disabled = !enabled;
+  if (enabled) input.placeholder = 'ここに入力してください...';
+  else input.placeholder = 'AIが考え中...';
+}
+
+function focusInput() {
+  setTimeout(() => document.getElementById('user-input')?.focus(), 100);
+}
+
+function scrollToBottom() {
+  const c = document.getElementById('main-area');
+  if (c) c.scrollTop = c.scrollHeight;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-banner');
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('visible');
+}
+
+function hideError() {
+  document.getElementById('error-banner').classList.remove('visible');
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ============================================================
+   TEXTAREA AUTO-RESIZE
+============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('user-input');
+  if (ta) {
+    ta.addEventListener('input', () => resizeTextarea(ta));
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+});
+
+function resizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+/* ============================================================
+   API KEY MODAL
+============================================================ */
+function openApiModal() {
+  const modal = document.getElementById('api-modal');
+  modal.classList.remove('hidden');
+  const input = document.getElementById('api-key-input');
+  input.value = localStorage.getItem('gemini_api_key') || '';
+  const sel = document.getElementById('model-select');
+  if (sel) sel.value = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+  setTimeout(() => input.focus(), 100);
+}
+
+function closeApiModal() {
+  document.getElementById('api-modal').classList.add('hidden');
+}
+
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val) { alert('APIキーを入力してください'); return; }
+  const sel = document.getElementById('model-select');
+  const model = sel ? sel.value : 'gemini-2.5-flash';
+  localStorage.setItem('gemini_api_key', val);
+  localStorage.setItem('gemini_model', model);
+  closeApiModal();
+  // If on start screen, start session
+  if (state.step === 0) startSession();
+}
+
+// Close modal on overlay click
+document.getElementById('api-modal')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('api-modal')) closeApiModal();
+});
+
+/* ============================================================
+   STORAGE: SAVE / LOAD DESIGNS
+============================================================ */
+function getHistory() {
+  try {
+    return JSON.parse(localStorage.getItem('customer_designs') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function setHistory(arr) {
+  localStorage.setItem('customer_designs', JSON.stringify(arr));
+}
+
+function saveDesign(result, sourceInput) {
+  const history = getHistory();
+  const now = new Date().toISOString();
+  const entry = {
+    id: 'cust_' + Date.now(),
+    title: result.title || '顧客設計 ' + new Date().toLocaleDateString('ja-JP'),
+    plan: result.plan || state.planContext || '',
+    who: result.who || '',
+    context: result.context || '',
+    emotion: result.emotion || '',
+    value_hint: result.value_hint || '',
+    ritual: result.ritual || '',
+    source_input: sourceInput || '',
+    tags: extractTags(result.who || ''),
+    visibility: 'private',
+    owner: 'local_user',
+    version: 1,
+    created_at: now,
+    updated_at: now,
+  };
+  history.unshift(entry);
+  setHistory(history);
+  renderHistory();
+  return entry;
+}
+
+function extractTags(who) {
+  const tags = [];
+  if (/学生|大学|高校|専門/.test(who)) tags.push('学生');
+  if (/若年|Z世代|20代|10代/.test(who)) tags.push('若年層');
+  if (/主婦|ママ|母/.test(who)) tags.push('主婦・ママ');
+  if (/社会人|会社員|ビジネス/.test(who)) tags.push('社会人');
+  if (/シニア|高齢|60代|70代/.test(who)) tags.push('シニア');
+  return tags;
+}
+
+/* ============================================================
+   HISTORY RENDER
+============================================================ */
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  const history = getHistory();
+
+  if (history.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📭</div>まだ保存された<br>顧客設計がありません</div>';
+    return;
+  }
+
+  var html = '<button class="btn btn-new btn-sm" onclick="startNew()">＋ 新しい顧客設計</button>';
+  for (var i = 0; i < history.length; i++) {
+    var item = history[i];
+    var id = item.id;
+    var date = new Date(item.created_at).toLocaleDateString('ja-JP');
+    html += '<div class="history-item" onclick="previewDesign(\'' + id + '\')">';
+    html += '<div class="history-item-title">' + escHtml(item.title) + '</div>';
+    html += '<div class="history-item-meta">' + date + '</div>';
+    html += '<div class="history-item-btns">';
+    html += '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();loadDesign(\'' + id + '\')">呼び出す</button>';
+    html += '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();duplicateDesign(\'' + id + '\')">複製</button>';
+    html += '<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteDesign(\'' + id + '\')">削除</button>';
+    html += '</div></div>';
+  }
+  list.innerHTML = html;
+}
+/* ============================================================
+   HISTORY ACTIONS
+============================================================ */
+function loadDesign(id) {
+  const history = getHistory();
+  const item = history.find(h => h.id === id);
+  if (!item) return;
+
+  // Show the result in chat
+  startNew();
+  setTimeout(() => {
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('progress-bar').classList.remove('hidden');
+    document.getElementById('mode-bar').classList.remove('hidden');
+    document.getElementById('chat-messages').classList.remove('hidden');
+
+    updateProgress(4, true);
+    clearMessages();
+
+    appendMessage('ai', '「' + escHtml(item.title) + '」の顧客設計を呼び出しました。');
+
+    const cardsHtml = buildResultCards(item);
+    appendRaw(cardsHtml);
+
+    const actionsEl = document.createElement('div');
+    actionsEl.className = 'result-actions';
+    actionsEl.innerHTML = '<button class="btn btn-primary btn-sm" onclick="startNew()">＋ 新しい設計をはじめる</button>';
+    document.getElementById('chat-messages').appendChild(actionsEl);
+
+    document.getElementById('input-area').classList.add('hidden');
+  }, 50);
+}
+
+function duplicateDesign(id) {
+  const history = getHistory();
+  const item = history.find(h => h.id === id);
+  if (!item) return;
+  const now = new Date().toISOString();
+  const copy = {
+    ...item,
+    id: 'cust_' + Date.now(),
+    title: item.title + ' (コピー)',
+    created_at: now,
+    updated_at: now,
+  };
+  history.unshift(copy);
+  setHistory(history);
+  renderHistory();
+}
+
+function deleteDesign(id) {
+  if (!confirm('この顧客設計を削除しますか？')) return;
+  const history = getHistory().filter(h => h.id !== id);
+  setHistory(history);
+  renderHistory();
+}
+
+let previewTargetId = null;
+
+function previewDesign(id) {
+  const history = getHistory();
+  const item = history.find(h => h.id === id);
+  if (!item) return;
+
+  previewTargetId = id;
+  document.getElementById('preview-title').textContent = item.title;
+  document.getElementById('preview-cards').innerHTML = buildResultCards(item);
+  document.getElementById('preview-modal').classList.remove('hidden');
+  document.getElementById('preview-load-btn').onclick = () => {
+    closePreview();
+    loadDesign(id);
+  };
+}
+
+function closePreview() {
+  document.getElementById('preview-modal').classList.add('hidden');
+}
+
+document.getElementById('preview-modal')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('preview-modal')) closePreview();
+});
+
+/* ============================================================
+   EXPORT / IMPORT
+============================================================ */
+function exportAll() {
+  const data = getHistory();
+  if (data.length === 0) { alert('保存されたデータがありません'); return; }
+  const json = JSON.stringify(data, null, 2);
+  downloadJson(json, 'customer_designs_' + Date.now() + '.json');
+}
+
+function exportSingle(id) {
+  const item = getHistory().find(h => h.id === id);
+  if (!item) return;
+  const json = JSON.stringify([item], null, 2);
+  downloadJson(json, 'customer_design_' + item.title.replace(/\s/g,'_') + '.json');
+}
+
+function downloadJson(json, filename) {
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) throw new Error('不正なフォーマット');
+      const current = getHistory();
+      const currentIds = new Set(current.map(h => h.id));
+      let added = 0;
+      imported.forEach(item => {
+        if (!currentIds.has(item.id)) {
+          current.unshift(item);
+          added++;
+        }
+      });
+      setHistory(current);
+      renderHistory();
+      alert(added + '件の顧客設計をインポートしました');
+    } catch (err) {
+      alert('インポートに失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+
+/* ============================================================
+   CHAOS TRIGGER
+============================================================ */
+const CHAOS_NOISES = [
+  'もしこれがラグジュアリーブランドの施策だったら？\nターゲットは変わるか？価値は変わるか？',
+  'そのターゲット、この状況を心の底から「嫌悪」していたら？\n嫌悪から逆算して設計できないか？',
+  '効率を100%無視して、あえて「無駄」を価値にするとしたら？\n何が残る？',
+  'AIがこの企画を要約して消費者に届けるとしたら、何が残る？\n残らないなら、意味がない。',
+  'この人が「選び続ける」ではなく「これが自分の一部」と感じる瞬間はいつ？\n儀式にできるか？',
+  'あえて情報を欠落させたら、どんな意味補完が起きる？\n不完全さが価値になる設計はできないか？',
+];
+
+function fireChaos() {
+  if (state.step < 1) return;
+
+  const btn = document.getElementById('chaos-btn');
+  btn.classList.add('firing');
+  setTimeout(() => btn.classList.remove('firing'), 400);
+
+  const noise = CHAOS_NOISES[Math.floor(Math.random() * CHAOS_NOISES.length)];
+
+  // 専用スタイルで注入
+  const container = document.getElementById('chat-messages');
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.style.cssText = 'opacity:0;transform:translateY(8px);animation:msgIn 0.3s ease forwards;';
+  el.innerHTML = '<div class="avatar ai" style="background:var(--danger);font-size:11px">⚡</div>' + '<div class="bubble ai" style="border-color:rgba(224,90,90,0.35);background:#1e1418;">' + '<div style="font-size:11px;color:var(--danger);font-weight:700;letter-spacing:0.08em;margin-bottom:6px;text-transform:uppercase">Chaos Trigger</div>' + escHtml(noise).replace(/\n/g, '<br>') + '</div>';
+  container.appendChild(el);
+  scrollToBottom();
+}
+
+/* ============================================================
+   MODE SWITCHING
+============================================================ */
+function setMode(mode) {
+  state.currentMode = mode;
+  // ボタンのactive状態を更新
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  // セッション中なら切り替えを通知
+  if (state.step >= 1) {
+    const labels = { normal:'通常モード', expand:'風呂敷広げモード', converge:'畳むモード', yuta:'Yutaモード' };
+    appendMessage('ai', labels[mode] + 'に切り替えた。\n続けて。');
+    scrollToBottom();
+  }
+}
+
+/* ============================================================
+   MOBILE SIDEBAR
+============================================================ */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  renderHistory();
+
+  // Show API key prompt if not set
+  if (!localStorage.getItem('gemini_api_key')) {
+    // Show a subtle note on start screen
+    const startScreen = document.getElementById('start-screen');
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:12px;color:var(--text-dim);margin-top:-8px;';
+    note.innerHTML = '※ Gemini APIキーが必要です（<button onclick="openApiModal()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0">今すぐ設定</button>）';
+    startScreen.appendChild(note);
+  }
+
+  // Mobile: show history button
+  if (window.innerWidth <= 768) {
+    document.getElementById('mobile-history-btn')?.classList.remove('hidden');
+  }
+});
+
+</script>
+</body>
+</html>
